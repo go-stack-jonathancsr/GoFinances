@@ -1,4 +1,6 @@
+/* eslint-disable no-param-reassign */
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 import income from '../../assets/income.svg';
 import outcome from '../../assets/outcome.svg';
@@ -24,14 +26,17 @@ interface Transaction {
 }
 
 interface Balance {
-  income: string;
-  outcome: string;
-  total: string;
+  income: number;
+  outcome: number;
+  total: number;
+  formattedIncome: string;
+  formattedOutcome: string;
+  formattedTotal: string;
 }
 
 interface TransactionResponse {
-  balance:Balance;
-  transactions:Transaction[];
+  balance: Balance;
+  transactions: Transaction[];
 }
 
 const Dashboard: React.FC = () => {
@@ -40,9 +45,23 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     async function loadTransactions(): Promise<void> {
-        const response = await api.get<TransactionResponse>('/transactions');
-        setTransactions(response.data.transactions);
-        setBalance(response.data.balance);
+      const response = await api.get<TransactionResponse>('/transactions');
+
+      const transactionsParsed = response.data.transactions.map(transaction => {
+        transaction.formattedValue = formatValue(transaction.value);
+        transaction.formattedDate = new Date(
+          transaction.created_at,
+        ).toLocaleDateString('pt-br');
+        return transaction;
+      });
+
+      const balanceParsed = response.data.balance;
+      balanceParsed.formattedIncome = formatValue(balanceParsed.income);
+      balanceParsed.formattedOutcome = formatValue(balanceParsed.outcome);
+      balanceParsed.formattedTotal = formatValue(balanceParsed.total);
+
+      setTransactions(transactionsParsed);
+      setBalance(balanceParsed);
     }
 
     loadTransactions();
@@ -58,21 +77,27 @@ const Dashboard: React.FC = () => {
               <p>Entradas</p>
               <img src={income} alt="Income" />
             </header>
-            {balance && <h1 data-testid="balance-income">R$ {balance.income}</h1>}
+            {balance && (
+              <h1 data-testid="balance-income">{balance.formattedIncome}</h1>
+            )}
           </Card>
           <Card>
             <header>
               <p>Saídas</p>
               <img src={outcome} alt="Outcome" />
             </header>
-            {balance && <h1 data-testid="balance-outcome">R$ {balance.outcome}</h1>}
+            {balance && (
+              <h1 data-testid="balance-outcome">{balance.formattedOutcome}</h1>
+            )}
           </Card>
           <Card total>
             <header>
               <p>Total</p>
               <img src={total} alt="Total" />
             </header>
-            {balance && <h1 data-testid="balance-total">R$ {balance.total}</h1>}
+            {balance && (
+              <h1 data-testid="balance-total">{balance.formattedTotal}</h1>
+            )}
           </Card>
         </CardContainer>
 
@@ -88,16 +113,19 @@ const Dashboard: React.FC = () => {
             </thead>
 
             <tbody>
-              {transactions.map(transaction =>{
-                return(
-                <tr key={transaction.id}>
-                  <td className="title">{transaction.title}</td>
-                  {transaction.type === 'outcome' && <td className="outcome">- R$ {transaction.value}</td>}
-                  {transaction.type === 'income' && <td className="income">- R$ {transaction.value}</td>}
-                  <td>{transaction.category}</td>
-                  <td>{transaction.formattedDate}</td>
-                </tr>
-                )
+              {transactions.map(transaction => {
+                return (
+                  <tr key={transaction.id}>
+                    <td className="title">{transaction.title}</td>
+                    <td className={transaction.type}>
+                      {transaction.type === 'outcome' && ' - '}
+                      {transaction.formattedValue}
+                    </td>
+
+                    <td>{transaction.category.title}</td>
+                    <td>{transaction.formattedDate}</td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
